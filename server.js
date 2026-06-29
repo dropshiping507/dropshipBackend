@@ -11,8 +11,9 @@ connectDB().then(() => {
 });
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: process.env.VITE_FRONTEND }));
 app.use(express.json());
+
 
 // ✅ IMPORT ROUTES
 const authRoutes = require("./routes/authRoutes");
@@ -53,10 +54,14 @@ app.use("/api/injections", injectionRoutes);
 app.use("/api/support", supportRoutes);
 
 // ✅ TEST ROUTE
+
+const FRONTEND_URL = process.env.VITE_FRONTEND;
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
     message: "Backend is running",
+    frontendUrl: FRONTEND_URL,
   });
 });
 
