@@ -8,6 +8,7 @@ const useragent = require("useragent");
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
+
 // register user
 const register = async (req, res) => {
   try {

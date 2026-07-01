@@ -3,17 +3,14 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const createLeader = require("./seed/createLeader");
-const dns = require("node:dns/promises");
-dns.setServers(['8.8.8.8', '1.1.1.1']);
 dotenv.config();
 connectDB().then(() => {
   createLeader("admin", "mypassword123");
 });
 const app = express();
 
-app.use(cors({ origin: process.env.VITE_FRONTEND }));
+app.use(cors());
 app.use(express.json());
-
 
 // ✅ IMPORT ROUTES
 const authRoutes = require("./routes/authRoutes");
@@ -54,14 +51,10 @@ app.use("/api/injections", injectionRoutes);
 app.use("/api/support", supportRoutes);
 
 // ✅ TEST ROUTE
-
-const FRONTEND_URL = process.env.VITE_FRONTEND;
-
 app.get("/", (req, res) => {
   res.json({
     success: true,
     message: "Backend is running",
-    frontendUrl: FRONTEND_URL,
   });
 });
 

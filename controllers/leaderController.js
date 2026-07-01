@@ -21,6 +21,9 @@ const loginLeader = async (req, res) => {
       });
     }
 
+    leader.isOnline = true;
+    await leader.save();
+
     const token = jwt.sign(
       { id: leader._id, role: "leader" },
       process.env.JWT_SECRET,
@@ -64,4 +67,23 @@ const getLeader = async (req, res) => {
     });
   }
 };
-module.exports = { loginLeader, getLeader };
+
+// logout leader
+const logoutLeader = async (req, res) => {
+  try {
+    await Leader.findByIdAndUpdate(req.user.id, {
+      isOnline: false,
+    });
+
+    res.json({
+      success: true,
+      message: "Leader Logged out successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+module.exports = { loginLeader, getLeader, logoutLeader };
