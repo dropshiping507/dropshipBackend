@@ -43,6 +43,20 @@ const register = async (req, res) => {
 
     const refUser = await User.findOne({ myInvitationCode: referredBy });
 
+    const getRootAdmin = async (user) => {
+      if (!user.parentUser) {
+        return user.adminId;
+      }
+
+      const parent = await User.findById(user.parentUser);
+
+      if (!parent) {
+        return user.adminId;
+      }
+
+      return getRootAdmin(parent);
+    };
+
     if (refUser) {
       parentUser = refUser._id;
 
@@ -59,19 +73,6 @@ const register = async (req, res) => {
 
       adminId = refAdmin._id;
     }
-    const getRootAdmin = async (user) => {
-      if (!user.parentUser) {
-        return user.adminId;
-      }
-
-      const parent = await User.findById(user.parentUser);
-
-      if (!parent) {
-        return user.adminId;
-      }
-
-      return getRootAdmin(parent);
-    };
 
     // 6. Create user
     const newUser = await User.create({
