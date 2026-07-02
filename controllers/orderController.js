@@ -4,8 +4,6 @@ const Injection = require("../models/Injection");
 
 // create orders
 const createOrder = async (req, res) => {
-  console.log("\n================ CREATE ORDER HIT ================");
-  console.log("BODY:", req.body);
   try {
     const {
       userId,
@@ -19,16 +17,12 @@ const createOrder = async (req, res) => {
     } = req.body;
 
     const user = await User.findById(userId);
-    console.log("STEP 1: Finding user...");
     if (!user) {
-      console.log("❌ USER NOT FOUND");
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
-    console.log("✅ USER FOUND:", user._id);
-    console.log("currentCycleOrders:", user.currentCycleOrders);
 
     if (user.currentCycleOrders === 0) {
       return res.status(403).json({
@@ -44,7 +38,7 @@ const createOrder = async (req, res) => {
     }).sort({ createdAt: -1 });
     console.log("Injection found:", injection);
     // INJECTION CHECK
-    const nextOrder = user.currentCycleOrders - 1;
+    const nextOrder = user.completedCycleOrders + 1;
     console.log("NEXT ORDER:", nextOrder);
     let orderDifferenceAmount = 0;
     let requiresInjection = false;
@@ -65,13 +59,10 @@ const createOrder = async (req, res) => {
     if (isInjectionOrder) {
       status = "undone";
       console.log("STATUS forced to UNDONE (injection)");
-    } else if (action === "confirm") {
-      console.log("STATUS set to COMPLETED");
-      status = "completed";
     } else {
-      console.log("STATUS default UNDONE");
+      // Normal orders
+      status = action === "confirm" ? "completed" : "undone";
     }
-    console.log("STEP 3: Creating order...");
     // CREATE ORDER
     const order = await Order.create({
       userId,
@@ -86,9 +77,6 @@ const createOrder = async (req, res) => {
       requiresInjection,
     });
 
-    console.log("✅ ORDER CREATED:", order._id);
-
-    console.log("STEP 4: Updating user stats...");
     // update user stats
     if (status === "completed") {
       user.completedOrders += 1;
@@ -99,7 +87,8 @@ const createOrder = async (req, res) => {
       user.undone += 1;
     }
 
-    user.currentCycleOrders -= 1;
+    user.currentCycleOrders--;
+    user.completedCycleOrders++;
     console.log("STEP 5: Saving user...");
     console.log("New cycle count:", user.currentCycleOrders);
 
@@ -115,6 +104,71 @@ const createOrder = async (req, res) => {
   } catch (error) {
     console.log("🔥 ERROR IN CREATE ORDER:", error);
     return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// check start order
+const checkStartOrder = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // No orders left
+    if (user.currentCycleOrders <= 0) {
+      return res.json({
+        success: true,
+        canStart: false,
+        reason: "NO_ORDERS",
+      });
+    }
+
+    // Pending injection
+    const injection = await Injection.findOne({
+      user: user._id,
+      status: "pending",
+    }).sort({ createdAt: -1 });
+
+    if (injection) {
+      const lastOrder = await Order.findOne({
+        userId: user._id,
+      }).sort({ createdAt: -1 });
+
+      if (injection && user.completedCycleOrders === injection.injectionOrder) {
+        return res.json({
+          user,
+          success: true,
+          canStart: false,
+          reason: "INJECTION_REQUIRED",
+          injection,
+          lastOrder,
+        });
+      }
+    }
+
+    // Low balance
+    if (user.balance <= 0) {
+      return res.json({
+        success: true,
+        canStart: false,
+        reason: "LOW_BALANCE",
+      });
+    }
+
+    return res.json({
+      success: true,
+      canStart: true,
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
       message: error.message,
     });
@@ -249,6 +303,7 @@ const addOrderByAdmin = async (req, res) => {
     }
 
     user.currentCycleOrders = ordersToAdd;
+    user.completedCycleOrders = 0;
     user.totalOrders = Number(user.totalOrder || 0) + ordersToAdd;
     await user.save();
 
@@ -329,4 +384,5 @@ module.exports = {
   addOrderByAdmin,
   clearOrders,
   getLastOrderByUser,
+  checkStartOrder,
 };

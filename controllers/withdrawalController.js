@@ -69,8 +69,6 @@ const requestWithdrawal = async (req, res) => {
       });
     }
 
-    user.balance -= amountNum;
-    user.commission = 0;
 
     await user.save();
 
@@ -170,18 +168,36 @@ const updateWithdrawalStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const payment = await Withdrawal.findByIdAndUpdate(
-      id,
-      { status },
-      {
-        returnDocument: "after",
-      },
-    );
+    const withdrawal = await Withdrawal.findById(id);
 
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: "Withdrawal not found",
+      });
+    }
+
+    const user = await User.findById(withdrawal.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    withdrawal.status = status;
+    await withdrawal.save();
+
+    // If approved
+    if (status === "approved") {
+      user.balance -= withdrawal.amount;
+      user.commission = 0;
+
+      await user.save();
+    }
     return res.json({
       success: true,
       message: "status updated successfully",
-      payment,
+      payment: withdrawal,
     });
   } catch (error) {
     return res.status(500).json({
@@ -190,6 +206,9 @@ const updateWithdrawalStatus = async (req, res) => {
     });
   }
 };
+
+
+
 module.exports = {
   requestWithdrawal,
   getWithdrawals,

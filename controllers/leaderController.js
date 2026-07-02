@@ -1,6 +1,13 @@
 const Leader = require("../models/Leader");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const Withdrawal = require("../models/Withdrawal");
+const Payment = require("../models/Payment");
+const Order = require("../models/Order");
+const Injection = require("../models/Injection");
+const Support = require("../models/Support");
+const Admin = require("../models/Admin");
 
 // login leader
 const loginLeader = async (req, res) => {
@@ -46,7 +53,25 @@ const loginLeader = async (req, res) => {
 // get leader profile
 const getLeader = async (req, res) => {
   try {
-    const leader = await Leader.findById(req.user.id).select("-password");
+    const [leader, users, admins, recharges, withdrawals, supports] =
+      await Promise.all([
+        Leader.findById(req.user.id).select("-password"),
+
+        User.find()
+          .select("-password -withdrawalPassword")
+          .sort({ createdAt: -1 }),
+
+        Admin.find()
+          .populate("teamMembers", "username balance commission totalOrders")
+          .select("-password")
+          .sort({ createdAt: -1 }),
+
+        Payment.find().sort({ createdAt: -1 }),
+
+        Withdrawal.find().sort({ createdAt: -1 }),
+
+        Support.find().sort({ createdAt: -1 }),
+      ]);
 
     if (!leader) {
       return res.status(404).json({
@@ -55,15 +80,28 @@ const getLeader = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
       leader,
+      users,
+      admins,
+      recharges,
+      withdrawals,
+      supports,
+
+      // Optional counts
+      totalUsers: users.length,
+      totalAdmins: admins.length,
+      totalRecharges: recharges.length,
+      totalWithdrawals: withdrawals.length,
+      totalSupports: supports.length,
     });
   } catch (error) {
-    console.log("CURRENT LEADER ERROR:", error);
-    res.status(500).json({
+    console.error("LEADER PROFILE ERROR:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to fetch leader profile",
     });
   }
 };

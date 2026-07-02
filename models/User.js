@@ -57,6 +57,10 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    completedCycleOrders: {
+      type: Number,
+      default: 0,
+    },
     undone: {
       type: Number,
       default: 0,

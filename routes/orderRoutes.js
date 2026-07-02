@@ -9,6 +9,7 @@ const {
   addOrderByAdmin,
   clearOrders,
   getLastOrderByUser,
+  checkStartOrder,
 } = require("../controllers/orderController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -27,6 +28,9 @@ router.get("/my-orders", authMiddleware, getMyOrders);
 
 // update order status (pending → completed/undone) for user
 router.patch("/:orderId", updateOrderStatus);
+
+// check start
+router.get("/check-start", authMiddleware, checkStartOrder);
 
 // delete order for a user
 router.delete("/:orderId", deleteOrder);
